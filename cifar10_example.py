@@ -5,8 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+from torchsummary import summary
 
 from moe import MoE
+from variations import ParallelExperts, CascadedExperts
 
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -33,12 +35,17 @@ else:
 
 net = MoE(input_size=3072, output_size=10, num_experts=10, hidden_size=256, noisy_gating=True, k=4)
 net = net.to(device)
+print(summary(net, (3*32*32,)))
+
+net = ParallelExperts(input_size=3072, output_size=10, num_experts=10, hidden_size=256)
+net = net.to(device)
+print(summary(net, (3*32*32,)))
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 net.train()
-for epoch in range(1):  # loop over the dataset multiple times
+for epoch in range(20):  # loop over the dataset multiple times
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
@@ -52,6 +59,7 @@ for epoch in range(1):  # loop over the dataset multiple times
         # forward + backward + optimize
         inputs = inputs.view(inputs.shape[0], -1)
         outputs, aux_loss = net(inputs)
+        #print(outputs.shape)
         loss = criterion(outputs, labels)
         total_loss = loss + aux_loss
         total_loss.backward()
